@@ -1,5 +1,5 @@
 [package]
-name = "bevy_alien"
+name = "bevy-commons-game"
 version = "0.1.0"
 authors = ["Jakub Lanc <jakub.lanc@gmail.com>"]
 edition = "2018"
@@ -11,3 +11,5 @@ bevy = "0.5"
 rand = "*"
 binance = { git = "https://github.com/wisespace-io/binance-rs.git" }
 bevy_easings = "*"
+serde = "*"
+bevy_ecs_tilemap = "*"

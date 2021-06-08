@@ -1,0 +1,25 @@
+[package]
+name = "bevy-commons-game"
+version = "0.1.0"
+authors = ["Jakub Lanc <jakub.lanc@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bevy = "0.5"
+rand = "*"
+binance = { git = "https://github.com/wisespace-io/binance-rs.git" }
+bevy_easings = "*"
+serde = "*"
+bevy_ecs_tilemap = "*"
+
+# hdk = {git = "https://github.com/holochain/holochain.git", rev = "a6ac0439670ba367c723a80d3b8bc7c419aa5f6e", package = "hdk"}
+# embedded_holochain_runner = { git = "https://github.com/Sprillow/embedded-holochain-runner.git" }
+# tracing = "*"
+# structopt = "0.3.11"
+# embedded_holochain_runner = { git = "https://github.com/Sprillow/embedded-holochain-runner.git", rev = "752d5dc" }
+
+# [patch.crates-io]
+# rkv = { git = "https://github.com/holochain/rkv.git", branch = "master" }
+# lmdb-rkv = { git = "https://github.com/holochain/lmdb-rs.git" }

@@ -5,30 +5,34 @@ use bevy::{
     prelude::*,
     render::{camera::Camera, render_graph::base::camera::CAMERA_3D},
 };
-use rand::Rng;
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
+use bevy_ecs_tilemap::prelude::*;
 // use bevy_easings::EasingsPlugin;
+use rand::Rng;
+// use embedded_holochain_runner::*;
+// use structopt::StructOpt;
+// const SAMPLE_DNA: &'static [u8] = include_bytes!("../dna/sample/sample.dna");
 
 mod assets;
-mod binance_api;
+mod api;
 mod board;
 mod components;
 mod input;
+mod tilemap;
+mod hextiles;
+mod game;
 
 use assets::{load_assets, AssetIndex};
-use binance_api::*;
+use api::binance::*;
 use board::spawn_board;
 use components::{FontType, HoubaType, TileType};
 use input::move_player;
-
-#[derive(Clone, Eq, PartialEq, Debug, Hash)]
-enum GameState {
-    Loading,
-    Playing,
-    GameOver,
-}
+use tilemap::startup_tilemap;
+use game::{ Game, GameState, Player, Bonus, Cell };
 
 fn main() {
+
     App::build()
         .insert_resource(Msaa { samples: 8 })
         .init_resource::<Game>()
@@ -37,27 +41,33 @@ fn main() {
         .init_resource::<HotPrice>()
         //
         .add_plugins(DefaultPlugins)
+        .add_plugin(TilemapPlugin)
+        .add_plugin(LogDiagnosticsPlugin::default())
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
+
         // .add_plugin(EasingsPlugin)
         //
         .add_state(GameState::Playing)
         //
         .add_startup_system(setup_cameras.system())
         .add_startup_system(load_assets.system())
-        .add_startup_system(spawn_board.system())
-        .add_startup_system(binance_api::setup_binance.system())
+        // .add_startup_system(spawn_board.system())        
+        // .add_startup_system(tilemap::startup_tilemap.system())
+        .add_startup_system(api::binance::setup_binance.system())
+        .add_startup_system(hextiles::sample_level.system())
         //
         // .add_system_set(SystemSet::on_enter(GameState::Loading).with_system(load_assets.system()))
         //
         .add_system_set(SystemSet::on_enter(GameState::Playing).with_system(setup.system()))
         .add_system_set(
             SystemSet::on_update(GameState::Playing)
-                .with_system(refresh_binance_data.system())
                 .with_system(inflate_player_by_price.system())
                 .with_system(move_player.system())
                 .with_system(focus_camera.system())
                 .with_system(rotate_bonus.system())
                 .with_system(scoreboard_system.system())
-                .with_system(price_text_system.system()),
+                .with_system(price_text_system.system())                
+                .with_system(hextiles::water_ripple.system())
         )
         .add_system_set(SystemSet::on_exit(GameState::Playing).with_system(teardown.system()))
         //
@@ -71,43 +81,15 @@ fn main() {
         .add_system_set(
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(5.0))
-                .with_system(spawn_bonus.system()),
+                .with_system(spawn_bonus.system())
+                .with_system(refresh_binance_data.system())
         )
         .run();
 }
 
-struct Cell {
-    height: f32,
-}
 
-#[derive(Default)]
-struct Player {
-    entity: Option<Entity>,
-    i: usize,
-    j: usize,
-}
-
-#[derive(Default)]
-struct Bonus {
-    entity: Option<Entity>,
-    i: usize,
-    j: usize,
-    handle: Handle<Scene>,
-}
-
-#[derive(Default)]
-pub struct Game {
-    board: Vec<Vec<Cell>>,
-    player: Player,
-    bonus: Bonus,
-    score: i32,
-    cake_eaten: u32,
-    camera_should_focus: Vec3,
-    camera_is_focus: Vec3,
-}
-
-const BOARD_SIZE_I: usize = 14;
-const BOARD_SIZE_J: usize = 21;
+const BOARD_SIZE_I: usize = 15;
+const BOARD_SIZE_J: usize = 15;
 
 const RESET_FOCUS: [f32; 3] = [
     BOARD_SIZE_I as f32 / 2.0,
@@ -127,6 +109,7 @@ fn setup_cameras(mut commands: Commands, mut game: ResMut<Game>) {
         .looking_at(game.camera_is_focus, Vec3::Y),
         ..Default::default()
     });
+    // commands.spawn_bundle(OrthographicCameraBundle::new_2d());
     commands.spawn_bundle(UiCameraBundle::default());
 }
 
@@ -209,7 +192,7 @@ fn setup(mut commands: Commands, mut game: ResMut<Game>, asset_index: Res<AssetI
     let hot_text = commands
         .spawn_bundle(TextBundle {
             text: Text::with_section(
-                "HOT:USD:",
+                "BTC:USDT:",
                 TextStyle {
                     font: asset_index
                         .font_by_type
@@ -251,7 +234,7 @@ fn focus_camera(
     mut game: ResMut<Game>,
     mut transforms: QuerySet<(Query<(&mut Transform, &Camera)>, Query<&Transform>)>,
 ) {
-    const SPEED: f32 = 2.0;
+    const SPEED: f32 = 0.1;
     // if there is both a player and a bonus, target the mid-point of them
     if let (Some(player_entity), Some(bonus_entity)) = (game.player.entity, game.bonus.entity) {
         if let (Ok(player_transform), Ok(bonus_transform)) = (
@@ -260,7 +243,7 @@ fn focus_camera(
         ) {
             game.camera_should_focus = player_transform
                 .translation
-                .lerp(bonus_transform.translation, 0.5);
+                .lerp(bonus_transform.translation, 0.1);
         }
     // otherwise, if there is only a player, target the player
     } else if let Some(player_entity) = game.player.entity {
@@ -341,7 +324,7 @@ fn rotate_bonus(game: Res<Game>, time: Res<Time>, mut transforms: Query<&mut Tra
         if let Ok(mut cake_transform) = transforms.get_mut(entity) {
             cake_transform.rotate(Quat::from_rotation_y(time.delta_seconds()));
             cake_transform.scale = Vec3::splat(
-                1.0 + (game.score as f32 / 10.0 * time.seconds_since_startup().sin() as f32).abs(),
+                1.0 + (game.score as f32 / 1.0 * time.seconds_since_startup().sin() as f32).abs(),
             );
         }
     }
@@ -400,7 +383,7 @@ fn scoreboard_system(game: Res<Game>, mut query: Query<&mut Text, Without<HotPri
 // update the score displayed during the game
 fn price_text_system(hot_price: Res<HotPrice>, mut query: Query<&mut Text, With<HotPrice>>) {
     let mut text = query.single_mut().unwrap();
-    text.sections[0].value = format!("HOT:USDT: {}", hot_price.actual);
+    text.sections[0].value = format!("BTC:USDT: {}", hot_price.actual);
 }
 
 // restart the game when pressing spacebar
@@ -411,11 +394,11 @@ fn gameover_keyboard(mut state: ResMut<State<GameState>>, keyboard_input: Res<In
 }
 
 fn refresh_binance_data(
-    hot_price: ResMut<binance_api::HotPrice>,
+    hot_price: ResMut<api::binance::HotPrice>,
     binance_api: Res<BinanceMarket>,
     keyboard_input: Res<Input<KeyCode>>,
 ) {
-    binance_api::get_price(hot_price, binance_api);
+    api::binance::get_price(hot_price, binance_api);
     if keyboard_input.just_pressed(KeyCode::K) {
         println!("refresh_binance_data: K pressed: ");
     }

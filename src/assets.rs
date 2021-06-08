@@ -26,6 +26,7 @@ pub struct AssetIndex {
 }
 
 // ARCH: Where to put this? In Houby module? In resource module? WKO question / pattern dilemma is this?
+// TODO: Implement loading state conditioned stage transitions via "asset_server.get_load_state(handle) == LoadState::Loaded"?
 pub fn load_assets(
     mut asset_index: ResMut<AssetIndex>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -44,6 +45,7 @@ pub fn load_assets(
     asset_index
         .scene_by_type
         .insert(TileType::Cake, asset_server.load(MESH_PATHS[2]).into());
+        
 
     // Load fonts
     asset_index
