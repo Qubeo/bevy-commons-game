@@ -1,0 +1,19 @@
+This is cartoon pizzeria(1 object)
+
+Create in Blender 3d v 2.92.0
+
+File formats:
+
+Blender 3d v 2.92.0
+OBJ; MTL
+Fbx
+Gltf
+The preview images were rendered in Blender 3d (Cycles; 1024 Samples)
+
+Materials: 4
+
+Vertices: 3909; Polygons: 2643
+
+Created by Tykryk
+
+Thank you:)

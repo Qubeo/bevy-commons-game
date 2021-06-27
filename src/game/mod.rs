@@ -1,7 +1,24 @@
-use bevy::prelude::{ Entity, Handle, Scene, Vec3 };
+pub mod components;
+pub mod board;
+pub mod bonus;
+pub mod player;
+pub mod account;
+
+use bevy::prelude::{ Color, Entity, Handle, Scene, Vec3 };
 
 pub struct Cell {
     pub height: f32,
+}
+
+#[derive(Default)]
+pub struct BoardParams {
+    pub size_x: usize,
+    pub size_y: usize
+}
+
+pub struct BoardColors {
+    // pub colors: Vec<Color>
+    pub colors: [bevy::prelude::Color; 3]
 }
 
 #[derive(Default)]
@@ -33,6 +50,7 @@ pub struct Game {
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum GameState {
     Loading,
+    FinishedLoading,
     Playing,
     GameOver,
 }

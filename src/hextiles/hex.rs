@@ -1,6 +1,7 @@
+use bevy_inspector_egui::Inspectable;
 /// A coordinate on a hex grid, representing distances along the various directions of travel
 /// Invariant: In order to represent a valid hex coordinate, q + r + s must equal 0
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Debug, Default, Eq, Hash, Inspectable, PartialEq)]
 pub struct HexCoord {
     pub q: isize,
     pub r: isize,

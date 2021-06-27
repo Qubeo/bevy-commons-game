@@ -1,16 +1,19 @@
 use std::sync::{ Arc, Mutex };
 
+use bevy::scene::Entity;
 use bevy::{ecs::system::EntityCommands, prelude::*};
 use bevy::render::pipeline::PrimitiveTopology;
 use bevy::render::mesh::Indices;
 use rand::Rng;
 
-// Q: crate:: vs. super:: ?
-use crate::{ BOARD_SIZE_I, BOARD_SIZE_J };
-use super::Game;
-use super::Cell;
+use bevy_mod_picking::{BoundVol, PickableBundle};
 
-mod hex;
+// Q: crate:: vs. super:: ?
+// use crate::{ BOARD_SIZE_I, BOARD_SIZE_J };
+use super::{ Game, Cell };
+use crate::{BoardColors, BoardParams, SystemsLoaded};
+
+pub mod hex;
 mod geometry;
 
 
@@ -18,7 +21,10 @@ pub fn sample_level(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut game: ResMut<Game>
+    board_params: Res<BoardParams>,
+    board_colors: Res<BoardColors>,
+    mut game: ResMut<Game>,
+    mut systems_loaded: ResMut<SystemsLoaded>
 ) {
     // add entities to the world
     /* commands
@@ -36,24 +42,19 @@ pub fn sample_level(
         });
     */
 
-    let colors = [
-        Color::rgb(0.286, 0.725, 0.902), // Water #49B9E6 (73, 185, 230)
-        Color::rgb(0.698, 0.941, 0.329), // Grass #B2F054 (178, 240, 84)
-        Color::rgb(0.722, 0.522, 0.380), // Hills ##B88561 (184, 133, 97)
-    ];
-
     let arc_commands = Arc::new(Mutex::new(commands));
     game.board = Vec::new();
 
     // Generate our hex mesh
-    let mesh = meshes.add(generate_hex_mesh());
+    let (mesh, hex_coords) = generate_hex_mesh(0.3, 1.0);
+    let mesh_handle = meshes.add(mesh);
     let mut rng = rand::thread_rng();
-    for q in 0..BOARD_SIZE_I {
+    for q in 0..board_params.size_y {
 
         // Push Cell row
         game.board.push(Vec::new());
 
-        for r in 0..BOARD_SIZE_J {
+        for r in 0..board_params.size_x {
 
             let tile = rng.gen_range(0..10);
             let tile = if tile > 0 && tile < 5 {
@@ -63,12 +64,12 @@ pub fn sample_level(
             } else {
                 2
             };
-            let color = colors[tile].clone();
+            let color = board_colors.colors[tile].clone();
 
             let height = match tile {
-                0 => 0.,
-                1 => 0.025 + rng.gen_range(-0.05..0.05),
-                2 => 0.05 + rng.gen_range(-0.1..0.1),
+                0 => 0.05,
+                1 => 0.1 + rng.gen_range(-0.05..0.05),
+                2 => 0.2 + rng.gen_range(-0.1..0.1),
                 _ => unreachable!(),
             };
 
@@ -86,13 +87,13 @@ pub fn sample_level(
                         .collect()
                 })
                 .collect();
-
             */
             
             add_hex(
                 Vec3::new(pos[0], pos[1], pos[2]),
+                0.2,
                 color,
-                mesh.clone(),
+                mesh_handle.clone(),
                 Arc::clone(&arc_commands),
                 &mut materials,
             ); // .lock().unwrap().insert(Cell { height: 10.0 });
@@ -103,34 +104,40 @@ pub fn sample_level(
             }
         }
     }
+    systems_loaded.tiles = true;
 }
 
 /// Spawn a hex in the world
 pub fn add_hex(
     position: Vec3,
+    height: f32,
     color: Color,
     mesh: Handle<Mesh>,
     commands: Arc<Mutex<Commands>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-) {
+) -> bevy::prelude::Entity {
     let commands_mutex = Arc::clone(&commands);
     let mut guard = commands_mutex.lock().unwrap();
     
-    guard.spawn_bundle(PbrBundle {
+    let hex_id = guard.spawn_bundle(PbrBundle {
         mesh,
         material: materials.add(color.into()),
         transform: Transform::from_translation(position),
         ..Default::default()
-    });
-
+    })
+    .insert_bundle(PickableBundle::default())
+    .insert(BoundVol::default())
+    .id();
     // commands
+
+    hex_id
 }
 
 /// Generate a single hex mesh
-pub fn generate_hex_mesh() -> Mesh {
+pub fn generate_hex_mesh(height: f32, radius: f32) -> (Mesh, hex::HexCoord) {
     let mut pts: Vec<[f32; 3]> = vec![];
-    let c = hex::HexCoord::new(0, 0);
-    geometry::bevel_hexagon_points(&mut pts, 1.0, 0.925, &c);
+    let hex_coord = hex::HexCoord::new(0, 0);
+    geometry::bevel_hexagon_points(&mut pts, radius, 0.925, &hex_coord, height);
 
     let mut normals: Vec<[f32; 3]> = vec![];
     geometry::bevel_hexagon_normals(&mut normals);
@@ -143,14 +150,16 @@ pub fn generate_hex_mesh() -> Mesh {
     let mut indices = vec![];
     geometry::bevel_hexagon_indices(&mut indices);
 
+    println!("gen_hex_mesh(): indices: {:?}, {:?}", indices.len(), indices);
+
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
     mesh.set_indices(Some(Indices::U32(indices)));
     mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, pts);
     mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
-    mesh
+    
+    (mesh, hex_coord)
 }
-
 
 
 pub struct Water;

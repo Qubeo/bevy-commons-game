@@ -1,3 +1,5 @@
+use bevy::prelude::warn;
+
 use super::hex::HexCoord;
 
 /// The ratio between a circle touching the points of a hex grid (the outer radius),
@@ -121,10 +123,12 @@ pub fn flat_hexagon_indices(idx: &mut Vec<u32>) {
         idx.push(i + 1); // Point       East           North-east
         idx.push(i + 2); // Next point  North-east     North-west
     }
+    // idx.push(0);    // FIXME: Fixing the mod_bevy_raycast shitunk
+    warn!("flat_hex_indices(): idx: {:?}, {:?}", idx.len(), idx);
 }
 
 /// Fill `points` with the points for a beveled `radius` hexagon, beveled by `factor`, at point `c`
-pub fn bevel_hexagon_points(points: &mut Vec<[f32; 3]>, radius: f32, factor: f32, c: &HexCoord) {
+pub fn bevel_hexagon_points(points: &mut Vec<[f32; 3]>, radius: f32, factor: f32, c: &HexCoord, height: f32) {
     let inner_radius = radius * factor;
     // Populate the points for the top face, as a slightly scaled hexagon
     flat_hexagon_points(points, inner_radius, c);
@@ -137,7 +141,7 @@ pub fn bevel_hexagon_points(points: &mut Vec<[f32; 3]>, radius: f32, factor: f32
     flat_hexagon_ring(points, radius, c, &offset);
 
     // Now, add points much lower, so we can create skirts so if hexagons are offset we don't see gaps
-    let offset = [0.0, -0.2, 0.0];
+    let offset = [0.0, -height, 0.0];
 
     // Add skirts
     flat_hexagon_ring(points, radius, c, &offset);
@@ -169,16 +173,23 @@ pub fn quad_indices(idx: &mut Vec<u32>, top_left: u32, top_right: u32, bottom_le
 pub fn bevel_hexagon_indices(idx: &mut Vec<u32>) {
     // First, fill indices with the flat top hexagon
     flat_hexagon_indices(idx);
+    println!("idx pre: len:{:?}, {:?}", idx.len(), idx);
     
     // Add slopes
     for i in 0..=6 {
         // Insert a quad, using the inner beveled hex, and the outer sloped hex
-        quad_indices(idx, i + 1, i + 2, i + 8, i + 9);
+        // quad_indices(idx, i + 1, i + 2, i + 8, i + 9);
+        quad_indices(idx, i, i + 1, i + 7, i + 8);
     }
     
     // Add a skirt
     for i in 0..=6 {
         // Insert a quad using the outer sloped hex and the bottom base hex
-        quad_indices(idx, i + 8, i + 9, i + 15, i + 16);
+        // FIXME: bottom_right: i+16 generates index 22 when i=6, which is out of bounds when using bevy_mod_raycast. A bug?
+        // quad_indices(idx, i + 8, i + 9, i + 15, i + 16);
+        quad_indices(idx, i + 7, i + 8, i + 14, i + 15);
+        
     }
+
+    println!("idx post: {:?}", idx);
 }

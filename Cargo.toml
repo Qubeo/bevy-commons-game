@@ -12,4 +12,25 @@ rand = "*"
 binance = { git = "https://github.com/wisespace-io/binance-rs.git" }
 bevy_easings = "*"
 serde = "*"
-bevy_ecs_tilemap = "*"
+# bevy_ecs_tilemap = "*"
+bevy_mod_picking = { version="0.4" }
+bevy_mod_raycast = { version="0.2.2", path="/home/qubeo/.cargo/registry/src/github.com-1ecc6299db9ec823/bevy_mod_raycast-0.2.2" }
+bevy-inspector-egui = { version="*" }
+
+
+# hdk = {git = "https://github.com/holochain/holochain.git", rev = "a6ac0439670ba367c723a80d3b8bc7c419aa5f6e", package = "hdk"}
+# hdk = { git = "https://github.com/holochain/holochain.git", rev = "0y72lm5b0fl9anb2z9pcx1i3shqdlckz04zx3phc084hbzpig4cq", package = "hdk" }
+
+# embedded_holochain_runner = { git = "https://github.com/Sprillow/embedded-holochain-runner.git" }
+tracing = "*"
+structopt = "0.3.11"
+
+tokio = { version = "1.3", features = [ "full" ]}
+# embedded_holochain_runner = { git = "https://github.com/Sprillow/embedded-holochain-runner.git", rev = "752d5dc" }
+embedded_holochain_runner = { git = "https://github.com/Sprillow/embedded-holochain-runner.git", branch = "deepkey-merged-updates" }
+
+[patch.crates-io]
+rkv = { git = "https://github.com/holochain/rkv.git", branch = "master" }
+lmdb-rkv = { git = "https://github.com/holochain/lmdb-rs.git" }
+
+# tokio = { version = "1.3", features = [ "full" ]}

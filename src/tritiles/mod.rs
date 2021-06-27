@@ -10,7 +10,7 @@ use crate::{ BOARD_SIZE_I, BOARD_SIZE_J };
 use super::Game;
 use super::Cell;
 
-mod hex;
+mod triangle;
 mod geometry;
 
 
